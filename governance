@@ -1,0 +1,112 @@
+# contracts/CurveIndexGovernance.vy
+
+interface veCRVINDEX:
+    def getVotingPower(user: address) -> uint256: view
+    def total_locked() -> uint256: view
+
+interface CurveIndex:
+    def addLPToken(lp_token: address): nonpayable
+
+# --- Constants ---
+VOTING_PERIOD: constant(uint256) = 3 * 86400  # 3 days
+PROPOSAL_THRESHOLD_BPS: constant(uint256) = 10  # 0.1% = 10 basis points (bps)
+
+# --- Storage ---
+
+vecrvindex: public(address)
+curve_index: public(address)
+proposal_count: public(uint256)
+
+struct Proposal:
+    lp_token: address
+    proposer: address
+    yes_votes: uint256
+    no_votes: uint256
+    start_time: uint256
+    executed: bool
+
+proposals: public(HashMap[uint256, Proposal])
+has_voted: HashMap[uint256, HashMap[address, bool]]
+
+# --- Events ---
+
+event ProposalCreated:
+    id: uint256
+    proposer: address
+    lp_token: address
+
+event Voted:
+    id: uint256
+    voter: address
+    support: bool
+    weight: uint256
+
+event Executed:
+    id: uint256
+    lp_token: address
+
+# --- Constructor ---
+
+@external
+def __init__(_vecrvindex: address, _curve_index: address):
+    self.vecrvindex = _vecrvindex
+    self.curve_index = _curve_index
+
+# --- Proposal Creation (requires 0.1% threshold) ---
+
+@external
+def propose(lp_token: address):
+    user_power: uint256 = veCRVINDEX(self.vecrvindex).getVotingPower(msg.sender)
+    total_locked: uint256 = veCRVINDEX(self.vecrvindex).total_locked()
+    assert total_locked > 0, "No veCRVINDEX supply"
+    assert user_power * 10000 >= total_locked * PROPOSAL_THRESHOLD_BPS, "Below proposal threshold"
+
+    id: uint256 = self.proposal_count
+    self.proposal_count += 1
+
+    self.proposals[id] = Proposal({
+        lp_token: lp_token,
+        proposer: msg.sender,
+        yes_votes: 0,
+        no_votes: 0,
+        start_time: block.timestamp,
+        executed: False
+    })
+
+    log ProposalCreated(id, msg.sender, lp_token)
+
+# --- Voting ---
+
+@external
+def vote(id: uint256, support: bool):
+    assert id < self.proposal_count, "Invalid proposal"
+    proposal: Proposal = self.proposals[id]
+    assert block.timestamp <= proposal.start_time + VOTING_PERIOD, "Voting closed"
+    assert not self.has_voted[id][msg.sender], "Already voted"
+
+    power: uint256 = veCRVINDEX(self.vecrvindex).getVotingPower(msg.sender)
+    assert power > 0, "No voting power"
+
+    if support:
+        self.proposals[id].yes_votes += power
+    else:
+        self.proposals[id].no_votes += power
+
+    self.has_voted[id][msg.sender] = True
+
+    log Voted(id, msg.sender, support, power)
+
+# --- Execute if vote passed ---
+
+@external
+def execute(id: uint256):
+    assert id < self.proposal_count, "Invalid proposal"
+    proposal: Proposal = self.proposals[id]
+    assert not proposal.executed, "Already executed"
+    assert block.timestamp > proposal.start_time + VOTING_PERIOD, "Voting ongoing"
+    assert proposal.yes_votes > proposal.no_votes, "Did not pass"
+
+    CurveIndex(self.curve_index).addLPToken(proposal.lp_token)
+    self.proposals[id].executed = True
+
+    log Executed(id, proposal.lp_token)
