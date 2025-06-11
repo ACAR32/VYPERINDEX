@@ -1,0 +1,85 @@
+# 🌀 CurveIndex Protocol
+
+**CurveIndex** is a trustless, Curve-native ERC-20 index token representing a diversified basket of Curve LP tokens. It is built to capture long-term yield, enforce governance-driven composition, and maintain a liquid market through Curve pools without offering constant redemption.
+
+---
+
+## 🧱 Protocol Overview
+
+- Built on **Curve Finance**, no Convex dependency
+- Holds and accumulates Curve LP tokens
+- Locks all CRV emissions into **veCRV**
+- Built to be **priced and traded as a commodity**
+- Enables **governance-directed index composition**
+- Designed for **long-term alignment** through locking and delayed redemption
+
+---
+
+## 🛠 Contracts
+
+| Contract                   | Description                                                            |
+|----------------------------|------------------------------------------------------------------------|
+| `CurveIndex.vy`            | Core contract handling LP deposits, redemptions, and ETH treasury      |
+| `veCRVINDEX.vy`            | 4-week lock contract for governance participation                      |
+| `CurveIndexGovernance.vy` | Trustless governance for proposing and voting on LP composition         |
+
+---
+
+## 🔁 Redemption Mechanics
+
+- **Redemption is only allowed during active governance voting windows (3 days)**
+- Users may burn `crvINDEX` to receive a **pro-rata share of the LPs**
+- A **0.25% withdrawal fee** is applied to all LPs withdrawn
+- Fee is retained in the protocol treasury
+- Outside of this window, `crvINDEX` is **non-redeemable and only tradable**
+
+---
+
+## 🗳 Governance
+
+- Governance power is granted only to lockers in `veCRVINDEX`
+- Lock period: **4 weeks**
+- Voting weight: **1 token = 1 vote**
+- Proposal threshold: **0.1% of the total locked supply**
+- Governance proposals determine:
+  - Which Curve LPs are added to the index
+  - Potential reweighting or structural changes
+
+---
+
+## ⚖️ Peg Stability & Market Making
+
+- The protocol deploys a **Curve pool (e.g. crvINDEX/ETH)** for liquid secondary market trading
+- It may direct **veCRV votes** and CRV emissions to incentivize this pool
+- The protocol itself can act as a **peg-stabilizing market maker**
+  - Buy `crvINDEX` from market when below NAV
+  - Sell when trading above NAV to grow treasury
+- Redemption window provides **price floor and NAV anchoring**
+
+---
+
+## 💰 Fees & Emissions
+
+- 0.25% fee on redemptions during governance voting windows
+- CRV emissions from LPs are automatically locked to build veCRV voting power
+- All ETH sent to the contract is accumulated into a treasury and used strategically
+
+---
+
+## 🔐 Trustless Infrastructure
+
+- No multisig or admin roles after deployment
+- Governance is controlled entirely by **long-term lockers**
+- All decisions are **on-chain, transparent, and enforceable**
+
+---
+
+## 🔧 Coming Soon
+
+- NAV Oracle & UI
+- Peg rebalancing vault contract
+- Curve factory pool deployment
+- Governance front-end for proposal creation and voting
+
+---
+
